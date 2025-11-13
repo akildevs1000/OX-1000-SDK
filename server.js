@@ -9,6 +9,7 @@ const { deleteUser, uploadUsers } = require('./functions');
 const terminals = new Map();
 
 let pendingForAll = null;
+
 const pendingById = new Map();
 
 // --- Server ---
@@ -39,7 +40,6 @@ wss.on('connection', (ws, req) => {
         }));
       }
 
-      // { cmd:"clear_pending" }  -> clears pendingForAll and pendingById
       if (msg.cmd === 'clear_pending') {
         pendingForAll = null;
         pendingById.clear();
@@ -47,12 +47,11 @@ wss.on('connection', (ws, req) => {
       }
 
       if (msg.cmd === 'deleteuser') {
-        return deleteUser(ws, msg);
+        return deleteUser(ws, msg, terminals, pendingById);
       }
 
-      // { cmd:"upload_users", targets:"all"|[ids], users?:[...] }
       if (msg.cmd === 'upload_users') {
-        return uploadUsers(ws, msg);
+        return uploadUsers(ws, msg, pendingForAll, terminals);
       }
 
       ws.send(JSON.stringify({ error: 'unknown_cmd' }));
@@ -114,10 +113,11 @@ wss.on('connection', (ws, req) => {
       if (termEntry) {
         termEntry.ready = true;
         flushQueue(termEntry);
-        await pushPendingIfAny(sn || initialId, termEntry);
+        await pushPendingIfAny(pendingForAll, pendingById, sn || initialId, termEntry);
       }
 
       console.log(' - Replied reg (nosenduser=true, ready=true, queues flushed)');
+
       return;
     }
 

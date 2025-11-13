@@ -1,5 +1,6 @@
 const JSON_LOG_FILE = 'structured_logs.json';
 const RAW_LOG_FILE = 'device_messages.log';
+const WebSocket = require('ws');
 
 function saveLogsAsJson(newRecords) {
     if (!Array.isArray(newRecords) || newRecords.length === 0) return;
@@ -49,7 +50,7 @@ async function uploadUsersToTerminal(term, usersArray) {
 
 
 // Push any pending batches to this terminal (called on reg/ready)
-async function pushPendingIfAny(termId, term) {
+async function pushPendingIfAny(pendingForAll, pendingById, termId, term) {
     // Per-ID pending
     if (pendingById.has(termId)) {
         const arr = pendingById.get(termId);
@@ -65,7 +66,7 @@ async function pushPendingIfAny(termId, term) {
 }
 
 
-async function broadcastUpload({ targets = 'all', usersArray }) {
+async function broadcastUpload({ pendingForAll, targets = 'all', usersArray, terminals }) {
     const ids = targets === 'all'
         ? [...terminals.keys()]
         : Array.isArray(targets) ? targets : [];
@@ -86,15 +87,12 @@ async function broadcastUpload({ targets = 'all', usersArray }) {
         console.log('   • Global pending upload set (will apply to future terminals)');
     }
 
-    // Send to currently connected
     for (const id of ids) {
         const term = terminals.get(id);
         if (term && term.ws.readyState === WebSocket.OPEN) {
             console.log(`   • Uploading to ${id} (ready=${term.ready})`);
             await uploadUsersToTerminal(term, usersArray);
-        } else if (targets === 'all') {
-            // nothing to do; pendingForAll will handle future arrivals
-        }
+        } else if (targets === 'all') { }
     }
 }
 
