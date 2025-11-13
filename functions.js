@@ -1,6 +1,6 @@
 const { broadcastUpload } = require("./helpers");
 
-function deleteUser(ws, msg, terminals,pendingById) {
+function deleteUser(ws, msg, terminals, pendingById) {
 
     const { targets, enrollid, backupnum } = msg;
 
@@ -50,11 +50,11 @@ function deleteUser(ws, msg, terminals,pendingById) {
     return ws.send(JSON.stringify({ type: 'done', cmd: 'deleteuser', sentCount: targetCount }));
 }
 
-async function uploadUsers(ws, msg, pendingForAll, terminals) {
+async function uploadUsers(ws, msg, pendingForAll, pendingById, terminals) {
     const targets = msg.targets || 'all';
     const usersArray = Array.isArray(msg.users) && msg.users.length ? msg.users : [];
     ws.send(JSON.stringify({ type: 'ack', cmd: 'upload_users', targets, count: usersArray.length }));
-    await broadcastUpload({ pendingForAll, targets, usersArray, terminals });
+    await broadcastUpload({ pendingForAll, pendingById, targets, usersArray, terminals });
     return ws.send(JSON.stringify({ type: 'done', cmd: 'upload_users' }));
 }
 

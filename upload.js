@@ -34,7 +34,7 @@ ws.on('message', (data) => {
         }
 
         if (msg.type === 'done' && msg.cmd === 'upload_users') {
-            console.log(`✅ Upload complete for terminal "${TERMINAL_ID}".`);
+            console.log(`✅ Upload complete for terminal`);
             return;
         }
 

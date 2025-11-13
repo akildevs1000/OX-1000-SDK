@@ -9,8 +9,10 @@ const { deleteUser, uploadUsers } = require('./functions');
 const terminals = new Map();
 
 let pendingForAll = null;
+let activeUploadClientWs = null; // <<< NEW: Variable to hold the client's WebSocket
 
 const pendingById = new Map();
+const processedReplies = new Set();
 
 // --- Server ---
 const wss = new WebSocket.Server({ host: HOST, port: PORT });
@@ -23,6 +25,7 @@ wss.on('connection', (ws, req) => {
   const type = (query.type || 'terminal').toLowerCase(); // "client" | "terminal"
 
   if (type === 'client') {
+    activeUploadClientWs = ws; // <<< FIX: Store the client's socket
     console.log(`\n--- Upload Client Connected (${clientIP}) ---`);
     ws.send(JSON.stringify({ msg: 'Connected as client', terminals: [...terminals.keys()] }));
 
@@ -51,13 +54,16 @@ wss.on('connection', (ws, req) => {
       }
 
       if (msg.cmd === 'upload_users') {
-        return uploadUsers(ws, msg, pendingForAll, terminals);
+        return uploadUsers(ws, msg, pendingForAll, pendingById, terminals);
       }
 
       ws.send(JSON.stringify({ error: 'unknown_cmd' }));
     });
 
-    ws.on('close', () => console.log(`Client disconnected (${clientIP})`));
+    ws.on('close', () => {
+      console.log(`Client disconnected (${clientIP})`);
+      activeUploadClientWs = null; // <<< FIX: Clear the socket reference on disconnect
+    });
     ws.on('error', (e) => console.error('Client socket error:', e.message));
     return;
   }
@@ -78,7 +84,7 @@ wss.on('connection', (ws, req) => {
 
     // Terminal registration
     if (cmd === 'reg') {
-      // learn SN from the message to re-key the map (if available)
+      // ... (existing registration logic) ...
       const sn = msg.sn || msg.sncode || msg.deviceid || msg.sncode1;
       let termId = initialId;
       let termEntry = terminals.get(initialId);
@@ -94,7 +100,7 @@ wss.on('connection', (ws, req) => {
           terminals.set(sn, termEntry);
           termEntry.meta = { ...(termEntry.meta || {}), sn };
           termId = sn;
-          console.log(`   • Terminal ID set to SN: ${sn}`);
+          console.log(`   • Terminal ID set to SN: ${sn}`);
         }
       }
 
@@ -123,6 +129,7 @@ wss.on('connection', (ws, req) => {
 
     // Terminal sends logs
     if (cmd === 'sendlog') {
+      // ... (existing sendlog logic) ...
       saveLogsAsJson(msg.record || []);
       try {
         ws.send(JSON.stringify({
@@ -138,15 +145,38 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
+    // server.js (inside 'connection', Terminal message handler)
+
     // Terminal replies to setuserinfo
     if (cmd === 'setuserinfo' && msg.ret) {
+      console.log(msg);
+      
       const sn = msg.sn || msg.deviceid || 'unknown';
       const result = msg.result === true;
 
+      // --- DEBOUNCE LOGIC ---
+      const replyKey = `${sn}:${cmd}`;
+
+      if (processedReplies.has(replyKey)) {
+        // This is a duplicate reply received within the debounce window
+        console.log(`⚠️ Ignored duplicate reply from ${sn}: ${cmd}`);
+        return; // STOP processing the duplicate message
+      }
+
+      // Add the key to the set and schedule its deletion after 500ms
+      processedReplies.add(replyKey);
+      setTimeout(() => processedReplies.delete(replyKey), 500);
+      // ----------------------
+
       let r = { type: 'response', cmd: 'upload_users', msg: result ? `✅ User uploaded: ${sn}` : ` ❌ User not uploaded: ${sn}` }
+      console.log(r);
 
-      ws.send(JSON.stringify(r));
-
+      // Send response to the browser client
+      if (activeUploadClientWs && activeUploadClientWs.readyState === WebSocket.OPEN) {
+        activeUploadClientWs.send(JSON.stringify(r));
+      } else {
+        console.warn(`Client response for ${sn} dropped: Upload client not available.`);
+      }
     }
 
   });

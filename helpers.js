@@ -66,7 +66,7 @@ async function pushPendingIfAny(pendingForAll, pendingById, termId, term) {
 }
 
 
-async function broadcastUpload({ pendingForAll, targets = 'all', usersArray, terminals }) {
+async function broadcastUpload({ pendingForAll, pendingById, targets = 'all', usersArray, terminals }) {
     const ids = targets === 'all'
         ? [...terminals.keys()]
         : Array.isArray(targets) ? targets : [];
