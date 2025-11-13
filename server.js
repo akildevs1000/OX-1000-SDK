@@ -150,32 +150,55 @@ wss.on('connection', (ws, req) => {
     // Terminal replies to setuserinfo
     if (cmd === 'setuserinfo' && msg.ret) {
       console.log(msg);
-      
-      const sn = msg.sn || msg.deviceid || 'unknown';
+
+      // Find terminal entry for this websocket
+      let termEntry = null;
+      let termId = 'unknown';
+      for (const [id, t] of terminals.entries()) {
+        if (t.ws === ws) {
+          termEntry = t;
+          termId = id;
+          break;
+        }
+      }
+
+      // Try to get enrollid/name from the device reply; if not present, use the pendingUploads queue
+      let pendingItem = null;
+      if (termEntry && Array.isArray(termEntry.pendingUploads) && termEntry.pendingUploads.length) {
+        pendingItem = termEntry.pendingUploads.shift();
+      }
+
+      const enrollid = msg.enrollid || (pendingItem && pendingItem.enrollid) || 'unknown';
+      const name = msg.name || (pendingItem && pendingItem.name) || null;
       const result = msg.result === true;
 
       // --- DEBOUNCE LOGIC ---
-      const replyKey = `${sn}:${cmd}`;
+      const replyKey = `${termId}:${enrollid}:${cmd}`;
 
       if (processedReplies.has(replyKey)) {
-        // This is a duplicate reply received within the debounce window
-        console.log(`⚠️ Ignored duplicate reply from ${sn}: ${cmd}`);
-        return; // STOP processing the duplicate message
+        console.log(`⚠️ Ignored duplicate reply from ${termId} (${enrollid}): ${cmd}`);
+        return;
       }
-
-      // Add the key to the set and schedule its deletion after 500ms
       processedReplies.add(replyKey);
       setTimeout(() => processedReplies.delete(replyKey), 500);
       // ----------------------
 
-      let r = { type: 'response', cmd: 'upload_users', msg: result ? `✅ User uploaded: ${sn}` : ` ❌ User not uploaded: ${sn}` }
+      const pretty = name ? `${name} with id of ${enrollid}` : `user with id of ${enrollid}`;
+      const r = {
+        type: 'response',
+        cmd: 'upload_users',
+        result: result,
+        enrollid,
+        name,
+        msg: result ? `✅ ${pretty} has been uploaded` : `❌ ${pretty} was not uploaded`
+      };
       console.log(r);
 
       // Send response to the browser client
       if (activeUploadClientWs && activeUploadClientWs.readyState === WebSocket.OPEN) {
         activeUploadClientWs.send(JSON.stringify(r));
       } else {
-        console.warn(`Client response for ${sn} dropped: Upload client not available.`);
+        console.warn(`Client response for ${enrollid} dropped: Upload client not available.`);
       }
     }
 

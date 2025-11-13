@@ -1,5 +1,6 @@
 const JSON_LOG_FILE = 'structured_logs.json';
 const RAW_LOG_FILE = 'device_messages.log';
+const fs = require('fs');
 const WebSocket = require('ws');
 
 function saveLogsAsJson(newRecords) {
@@ -39,9 +40,14 @@ function flushQueue(term) {
 // --- Upload helpers ---
 async function uploadUsersToTerminal(term, usersArray) {
     const delay = ms => new Promise(r => setTimeout(r, ms));
+    // Ensure terminal has a pendingUploads queue for matching replies
+    if (!term.pendingUploads) term.pendingUploads = [];
+
     for (const { modes = [], ...base } of usersArray) {
         for (const mode of modes) {
             const payload = { ...base, ...mode }; // includes cmd:"setuserinfo"
+            // Record the logical item we sent so we can match a later reply
+            term.pendingUploads.push({ enrollid: base.enrollid, name: base.name, backupnum: mode.backupnum });
             safeSendToTerminal(term, payload);
             await delay(30); // gentle pacing
         }
