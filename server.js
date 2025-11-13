@@ -188,9 +188,10 @@ wss.on('connection', (ws, req) => {
         type: 'response',
         cmd: 'upload_users',
         result: result,
+        status: result,
         enrollid,
         name,
-        msg: result ? `✅ ${pretty} has been uploaded` : `❌ ${pretty} was not uploaded`
+        msg: result ? `${pretty} has been uploaded` : `${pretty} was not uploaded`
       };
       console.log(r);
 
