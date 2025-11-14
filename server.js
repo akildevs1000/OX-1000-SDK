@@ -22,6 +22,7 @@ function init(devices) {
 
   let pendingForAll = null;
   let activeUploadClientWs = null; // <<< NEW: Variable to hold the client's WebSocket
+  let activeLogClientWs = null; // 👈 NEW: Variable to hold the client's log WebSocket
 
   const pendingById = new Map();
   const processedReplies = new Set();
@@ -78,6 +79,20 @@ function init(devices) {
       });
       ws.on('error', (e) => console.error('Client socket error:', e.message));
       return;
+    } else if (type === 'log') { // 👈 NEW: Log client connection logic
+      activeLogClientWs = ws;
+      console.log(`\n--- Log Client Connected (${clientIP}) ---`);
+      ws.send(JSON.stringify({ msg: 'Connected as log client', terminals: [...terminals.keys()] }));
+
+      // Handle disconnection for log client
+      ws.on('close', () => {
+        console.log(`Log Client disconnected (${clientIP})`);
+        if (activeLogClientWs === ws) { // Check if this is the active one
+          activeLogClientWs = null;
+        }
+      });
+      ws.on('error', (e) => console.error('Log client socket error:', e.message));
+      return; // Stop processing further client logic for this connection
     }
 
     // Terminal connection
@@ -166,7 +181,22 @@ function init(devices) {
         });
 
         console.log(stamped);
-        addLogsToQueue(stamped)
+        // addLogsToQueue(stamped);
+
+        // 🟢 NEW: Send logs to the active client
+        if (activeLogClientWs && activeLogClientWs.readyState === WebSocket.OPEN) {
+          try {
+            activeLogClientWs.send(JSON.stringify({
+              type: 'log_event', // Use a distinct type for client filtering
+              logs: stamped
+            }));
+          } catch (e) {
+            console.error('Error sending log broadcast:', e);
+          }
+        } else {
+          // Optional: console.log('Log client not available for broadcast.');
+        }
+        // ----------------------------------------
 
         try {
           ws.send(JSON.stringify({
