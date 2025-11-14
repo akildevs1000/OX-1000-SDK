@@ -4,14 +4,12 @@ const fs = require('fs');
 const WebSocket = require('ws');
 const axios = require('axios');
 const https = require('https');
+const { BACKEND_ENDPOINT } = require('./config');
 
 // Create HTTPS agent that ignores SSL errors
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
 let logQueue = [];
-// const URL = 'https://mytime2cloud-backend.test/api/store-logs-from-nodesdk';
-const URL = 'https://backend.mytime2cloud.com/api/store-logs-from-nodesdk';
-
 
 let devices = [];
 let isReady = null; // Promise to notify when loaded
@@ -20,7 +18,7 @@ let loadPromise = null;
 function loadDevices() {
     if (!loadPromise) {
         loadPromise = axios
-            .get("https://mytime2cloud-backend.test/api/devices-array", {
+            .get(`${BACKEND_ENDPOINT}/devices-array`, {
                 httpsAgent,
                 headers: { Accept: "application/json" },
             })
@@ -57,7 +55,7 @@ async function flushLogs() {
     logQueue = []; // clear queue before sending
 
     try {
-        await sendAttendanceLogs(URL, batch);
+        await sendAttendanceLogs(`${BACKEND_ENDPOINT}/store-logs-from-nodesdk`, batch);
         console.log(`Sent ${batch.length} logs to Laravel`);
     } catch (err) {
         console.error('Error sending logs, re-queueing', err);
