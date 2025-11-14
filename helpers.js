@@ -9,7 +9,8 @@ const https = require('https');
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
 let logQueue = [];
-const URL = 'https://mytime2cloud-backend.test/api/store-logs-from-nodesdk';
+// const URL = 'https://mytime2cloud-backend.test/api/store-logs-from-nodesdk';
+const URL = 'https://backend.mytime2cloud.com/api/store-logs-from-nodesdk';
 
 
 let devices = [];
