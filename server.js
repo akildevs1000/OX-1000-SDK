@@ -145,20 +145,27 @@ function init(devices) {
         let company_id = devices[msg.sn];
         let DeviceID = msg.sn;
 
-        const stamped = msg.record.map(r => ({
-          company_id: company_id,
-          UserID: r.enrollid,
-          DeviceID: DeviceID,
-          LogTime: r.time,
-          SerialNumber: 0,
-          status: "Allowed",
-          mode: { 1: "Fing", 2: "Pin", 3: "Card", 8: "Face" }[r.mode], //1:fp 2:pwd 3:card 8:face
-          reason: "---",
-          log_date_time: r.time,
-          index_serial_number: null,
-          log_date: r.time.split(" ")[0],
-        }));
+        const stamped = msg.record.map(r => {
+          let note = r.note.location.split(",");
+          let a = {
+            company_id: company_id,
+            UserID: r.enrollid,
+            DeviceID: DeviceID,
+            LogTime: r.time,
+            SerialNumber: 0,
+            status: "Allowed",
+            mode: { 1: "Fing", 2: "Pin", 3: "Card", 8: "Face" }[r.mode], //1:fp 2:pwd 3:card 8:face
+            reason: "---",
+            log_date_time: r.time,
+            index_serial_number: null,
+            log_date: r.time.split(" ")[0],
+            lat: note[0] || null,
+            lon: note[1] || null
+          }
+          return a;
+        });
 
+        console.log(stamped);
         addLogsToQueue(stamped)
 
         try {
