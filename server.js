@@ -181,7 +181,7 @@ function init(devices) {
         });
 
         console.log(stamped);
-        // addLogsToQueue(stamped);
+        addLogsToQueue(stamped);
 
         // 🟢 NEW: Send logs to the active client
         if (activeLogClientWs && activeLogClientWs.readyState === WebSocket.OPEN) {
