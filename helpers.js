@@ -2,9 +2,88 @@ const JSON_LOG_FILE = 'structured_logs.json';
 const RAW_LOG_FILE = 'device_messages.log';
 const fs = require('fs');
 const WebSocket = require('ws');
+const axios = require('axios');
+const https = require('https');
 
-function saveLogsAsJson(newRecords) {
-    if (!Array.isArray(newRecords) || newRecords.length === 0) return;
+// Create HTTPS agent that ignores SSL errors
+const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+
+let logQueue = [];
+const URL = 'https://mytime2cloud-backend.test/api/store-logs-from-nodesdk';
+
+
+let devices = [];
+let isReady = null; // Promise to notify when loaded
+let loadPromise = null;
+
+function loadDevices() {
+    if (!loadPromise) {
+        loadPromise = axios
+            .get("https://mytime2cloud-backend.test/api/devices-array", {
+                httpsAgent,
+                headers: { Accept: "application/json" },
+            })
+            .then((res) => {
+                devices = res.data;
+
+                fs.writeFileSync("devices.json", JSON.stringify(devices, null, 2));
+
+                return devices;
+            })
+            .catch((err) => {
+                throw err.response?.data || err.message;
+            });
+    }
+
+    return loadPromise;
+}
+// Export ONE single function
+function getDevices() {
+    return loadDevices(); // always returns a Promise
+}
+
+
+
+function addLogsToQueue(stamped) {
+    if (!Array.isArray(stamped) || stamped.length === 0) return;
+    logQueue.push(...stamped);
+}
+
+async function flushLogs() {
+    if (logQueue.length === 0) return;
+
+    const batch = [...logQueue];
+    logQueue = []; // clear queue before sending
+
+    try {
+        await sendAttendanceLogs(URL, batch);
+        console.log(`Sent ${batch.length} logs to Laravel`);
+    } catch (err) {
+        console.error('Error sending logs, re-queueing', err);
+        logQueue.unshift(...batch); // put them back in queue if failed
+    }
+}
+
+setInterval(flushLogs, 10000);
+
+async function sendAttendanceLogs(url, logs) {
+
+    try {
+        const response = await axios.post(url, logs, {
+            headers: { 'Content-Type': 'application/json' },
+            httpsAgent
+        });
+        console.log('Response from Laravel:', response.data);
+
+        saveLogsAsJson(logs);
+
+    } catch (error) {
+        console.error('Error sending logs:', error.response?.data || error.message);
+    }
+}
+
+function saveLogsAsJson(stamped) {
+    if (!Array.isArray(stamped) || stamped.length === 0) return;
     let existing = [];
     try {
         if (fs.existsSync(JSON_LOG_FILE)) {
@@ -12,7 +91,7 @@ function saveLogsAsJson(newRecords) {
             if (data.trim()) existing = JSON.parse(data);
         }
     } catch { }
-    const stamped = newRecords.map(r => ({ ...r, received_at: new Date().toISOString() }));
+
     fs.writeFileSync(JSON_LOG_FILE, JSON.stringify(existing.concat(stamped), null, 2));
 }
 
@@ -109,5 +188,8 @@ module.exports = {
     flushQueue,
     uploadUsersToTerminal,
     pushPendingIfAny,
-    broadcastUpload
+    broadcastUpload,
+    getDevices,
+    sendAttendanceLogs,
+    addLogsToQueue
 }
