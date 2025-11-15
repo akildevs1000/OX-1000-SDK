@@ -2,7 +2,7 @@
 const { PORT, HOST } = require('./config');
 const WebSocket = require('ws');
 const url = require('url');
-const { logRaw, flushQueue, pushPendingIfAny, getDevices, addLogsToQueue } = require('./helpers');
+const { logRaw, flushQueue, pushPendingIfAny, getDevices, addLogsToQueue, getAddress } = require('./helpers');
 const { deleteUser, uploadUsers } = require('./functions');
 
 async function main() {
@@ -161,7 +161,12 @@ function init(devices) {
         let DeviceID = msg.sn;
 
         const stamped = msg.record.map(r => {
+
           let note = r.note.location.split(",");
+
+          let lat = note[0] || null;
+          let lon = note[1] || null;
+          
           let a = {
             company_id: company_id,
             UserID: r.enrollid,
@@ -174,13 +179,15 @@ function init(devices) {
             log_date_time: r.time,
             index_serial_number: null,
             log_date: r.time.split(" ")[0],
-            lat: note[0] || null,
-            lon: note[1] || null
+            lat: lat,
+            lon: lon,
+            gps_location: getAddress(lat, lon)
           }
           return a;
         });
 
         console.log(stamped);
+        
         addLogsToQueue(stamped);
 
         // 🟢 NEW: Send logs to the active client

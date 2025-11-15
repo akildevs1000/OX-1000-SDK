@@ -180,6 +180,53 @@ async function broadcastUpload({ pendingForAll, pendingById, targets = 'all', us
     }
 }
 
+async function getAddress(lat, lon) {
+    const API_KEY = process.env.LOCATIONIQ_KEY;
+    const url = "https://us1.locationiq.com/v1/reverse.php";
+
+    try {
+        const { data } = await axios.get(url, {
+            params: {
+                key: API_KEY,
+                lat,
+                lon,
+                format: "json",
+                normalizeaddress: 1,
+                "accept-language": "en",
+            },
+        });
+
+        const address = data.address || {};
+
+        const road = address.road || "";
+        const neighbourhood = address.neighbourhood || "";
+        const suburb = address.suburb || "";
+        const city = address.city || address.town || address.village || "";
+        const country = address.country || "";
+        const countryCode = (address.country_code || "").toUpperCase();
+
+        // Build clean formatted string (no "undefined" or extra spaces)
+        const parts = [road, neighbourhood, suburb, city, country]
+            .filter(Boolean)               // remove empty values
+            .join(", ");
+
+        return `${parts}`;
+
+    } catch (error) {
+        console.error("❌ LocationIQ Error:", error.response?.data || error.message);
+        return null;
+    }
+}
+// (async () => {
+//     const latitude = 25.260731917286243;
+//     const longitude = 55.291596602128244;
+
+//     const result = await getAddress(latitude, longitude);
+
+//     console.log("Reverse Geocoded Result:");
+//     console.log(result);
+// })();
+
 module.exports = {
     saveLogsAsJson,
     logRaw,
@@ -190,5 +237,6 @@ module.exports = {
     broadcastUpload,
     getDevices,
     sendAttendanceLogs,
-    addLogsToQueue
+    addLogsToQueue,
+    getAddress
 }
