@@ -2,7 +2,7 @@
 const { PORT, HOST } = require('./config');
 const WebSocket = require('ws');
 const url = require('url');
-const { logRaw, flushQueue, pushPendingIfAny, getDevices, addLogsToQueue } = require('./helpers');
+const { logRaw, flushQueue, pushPendingIfAny, getDevices, addLogsToQueue, getAddress } = require('./helpers');
 const { deleteUser, uploadUsers } = require('./functions');
 
 async function main() {
@@ -164,9 +164,23 @@ function init(devices) {
           // Build stamped logs with reverse geocoding
           const stamped = await Promise.all(
             (msg.record || []).map(async (r) => {
-              const parts = r.note.location.split(',');
-              let lat = parts[0]?.trim() || null;
-              let lon = parts[1]?.trim() || null;
+              // Safely parse lat/lon from r.note.location (e.g. "25.21,55.39")
+              let lat = null;
+              let lon = null;
+
+              if (r.note && typeof r.note.location === 'string') {
+                const parts = r.note.location.split(',');
+                lat = parts[0]?.trim() || null;
+                lon = parts[1]?.trim() || null;
+              }
+
+              // Reverse geocode if we have coordinates
+              let gps_location = null;
+              if (lat && lon) {
+                gps_location = await getAddress(lat, lon);
+                console.log('Reverse Geocoded Result:', gps_location);
+              }
+
               return {
                 company_id: company_id,
                 UserID: r.enrollid,
@@ -181,7 +195,7 @@ function init(devices) {
                 log_date: (r.time || '').split(" ")[0] || null,
                 lat: lat,
                 lon: lon,
-                // gps_location: gps_location
+                gps_location: gps_location
               };
             })
           );
@@ -202,6 +216,22 @@ function init(devices) {
               console.error('Error sending log broadcast:', e);
             }
           }
+
+          // Reply to device
+          try {
+            ws.send(JSON.stringify({
+              ret: 'sendlog',
+              result: true,
+              count: msg.count || 0,
+              logindex: msg.logindex,
+              cloudtime: new Date().toISOString().replace('T', ' ').substring(0, 19),
+              access: 1
+            }));
+          } catch (e) {
+            console.error('Error replying sendlog:', e);
+          }
+
+          console.log(' - Replied sendlog ok');
         })();
 
         return;
