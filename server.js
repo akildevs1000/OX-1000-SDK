@@ -166,7 +166,9 @@ function init(devices) {
 
           let lat = note[0] || null;
           let lon = note[1] || null;
-          
+
+          let address = await getAddress(lat, lon);
+
           let a = {
             company_id: company_id,
             UserID: r.enrollid,
@@ -181,13 +183,13 @@ function init(devices) {
             log_date: r.time.split(" ")[0],
             lat: lat,
             lon: lon,
-            gps_location: getAddress(lat, lon)
+            gps_location: address
           }
           return a;
         });
 
         console.log(stamped);
-        
+
         addLogsToQueue(stamped);
 
         // 🟢 NEW: Send logs to the active client
