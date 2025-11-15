@@ -218,6 +218,9 @@ async function getAddress(lat, lon) {
     }
 }
 // (async () => {
+// Al Nahda Street, Bur Dubai, Al Souk Al Kabeer, Dubai, United Arab Emirates
+//     const latitude = 25.260759774967934;
+//     const longitude = 55.29159548158346;
 //     const latitude = 25.260731917286243;
 //     const longitude = 55.291596602128244;
 
