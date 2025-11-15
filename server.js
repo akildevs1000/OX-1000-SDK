@@ -157,69 +157,86 @@ function init(devices) {
       // Terminal sends logs
       if (cmd === 'sendlog') {
 
-        let company_id = devices[msg.sn];
-        let DeviceID = msg.sn;
+        (async () => {
+          const company_id = devices[msg.sn];
+          const DeviceID = msg.sn;
 
-        const stamped = msg.record.map(r => {
+          // Build stamped logs with reverse geocoding
+          const stamped = await Promise.all(
+            (msg.record || []).map(async (r) => {
+              // Safely parse lat/lon from r.note.location (e.g. "25.21,55.39")
+              let lat = null;
+              let lon = null;
 
-          let note = r.note.location.split(",");
+              if (r.note && typeof r.note.location === 'string') {
+                const parts = r.note.location.split(',');
+                lat = parts[0]?.trim() || null;
+                lon = parts[1]?.trim() || null;
+              }
 
-          let lat = note[0] || null;
-          let lon = note[1] || null;
+              // Reverse geocode if we have coordinates
+              let gps_location = null;
+              if (lat && lon) {
+                gps_location = await getAddress(lat, lon);
+                console.log('Reverse Geocoded Result:', gps_location);
+              }
 
-          let address = await getAddress(lat, lon);
+              return {
+                company_id: company_id,
+                UserID: r.enrollid,
+                DeviceID: DeviceID,
+                LogTime: r.time,
+                SerialNumber: 0,
+                status: "Allowed",
+                mode: { 1: "Fing", 2: "Pin", 3: "Card", 8: "Face" }[r.mode] || "Unknown",
+                reason: "---",
+                log_date_time: r.time,
+                index_serial_number: null,
+                log_date: (r.time || '').split(" ")[0] || null,
+                lat: lat,
+                lon: lon,
+                gps_location: gps_location
+              };
+            })
+          );
 
-          let a = {
-            company_id: company_id,
-            UserID: r.enrollid,
-            DeviceID: DeviceID,
-            LogTime: r.time,
-            SerialNumber: 0,
-            status: "Allowed",
-            mode: { 1: "Fing", 2: "Pin", 3: "Card", 8: "Face" }[r.mode], //1:fp 2:pwd 3:card 8:face
-            reason: "---",
-            log_date_time: r.time,
-            index_serial_number: null,
-            log_date: r.time.split(" ")[0],
-            lat: lat,
-            lon: lon,
-            gps_location: address
+          console.log(stamped);
+
+          // Add to queue
+          addLogsToQueue(stamped);
+
+          // 🟢 Send logs to the active client (if connected)
+          if (activeLogClientWs && activeLogClientWs.readyState === WebSocket.OPEN) {
+            try {
+              activeLogClientWs.send(JSON.stringify({
+                type: 'log_event', // Use a distinct type for client filtering
+                logs: stamped
+              }));
+            } catch (e) {
+              console.error('Error sending log broadcast:', e);
+            }
           }
-          return a;
-        });
 
-        console.log(stamped);
-
-        addLogsToQueue(stamped);
-
-        // 🟢 NEW: Send logs to the active client
-        if (activeLogClientWs && activeLogClientWs.readyState === WebSocket.OPEN) {
+          // Reply to device
           try {
-            activeLogClientWs.send(JSON.stringify({
-              type: 'log_event', // Use a distinct type for client filtering
-              logs: stamped
+            ws.send(JSON.stringify({
+              ret: 'sendlog',
+              result: true,
+              count: msg.count || 0,
+              logindex: msg.logindex,
+              cloudtime: new Date().toISOString().replace('T', ' ').substring(0, 19),
+              access: 1
             }));
           } catch (e) {
-            console.error('Error sending log broadcast:', e);
+            console.error('Error replying sendlog:', e);
           }
-        } else {
-          // Optional: console.log('Log client not available for broadcast.');
-        }
-        // ----------------------------------------
 
-        try {
-          ws.send(JSON.stringify({
-            ret: 'sendlog',
-            result: true,
-            count: msg.count || 0,
-            logindex: msg.logindex,
-            cloudtime: new Date().toISOString().replace('T', ' ').substring(0, 19),
-            access: 1
-          }));
-        } catch { }
-        console.log(' - Replied sendlog ok');
+          console.log(' - Replied sendlog ok');
+        })();
+
         return;
       }
+
 
       // server.js (inside 'connection', Terminal message handler)
 
