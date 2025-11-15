@@ -158,8 +158,8 @@ function init(devices) {
       if (cmd === 'sendlog') {
 
         (async () => {
-          const company_id = devices[msg.sn];
-          const DeviceID = msg.sn;
+          let DeviceID = `${msg.sn}-Mobile`
+          const company_id = devices[DeviceID];
 
           // Build stamped logs with reverse geocoding
           const stamped = await Promise.all(
