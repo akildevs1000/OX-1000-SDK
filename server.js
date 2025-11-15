@@ -48,20 +48,6 @@ function init(devices) {
         let msg;
         try { msg = JSON.parse(raw); } catch (e) { return ws.send(JSON.stringify({ error: 'invalid_json' })); }
 
-        // { cmd:"list" }
-        if (msg.cmd === 'list') {
-          return ws.send(JSON.stringify({
-            type: 'terminals',
-            terminals: [...terminals.entries()].map(([id, t]) => ({ id, ready: t.ready, meta: t.meta || {} }))
-          }));
-        }
-
-        if (msg.cmd === 'clear_pending') {
-          pendingForAll = null;
-          pendingById.clear();
-          return ws.send(JSON.stringify({ type: 'done', cmd: 'clear_pending' }));
-        }
-
         if (msg.cmd === 'deleteuser') {
           return deleteUser(ws, msg, terminals, pendingById);
         }
@@ -161,25 +147,12 @@ function init(devices) {
           let DeviceID = `${msg.sn}-Mobile`
           const company_id = devices[DeviceID];
 
-          // Build stamped logs with reverse geocoding
           const stamped = await Promise.all(
             (msg.record || []).map(async (r) => {
-              // Safely parse lat/lon from r.note.location (e.g. "25.21,55.39")
-              let lat = null;
-              let lon = null;
 
-              if (r.note && typeof r.note.location === 'string') {
-                const parts = r.note.location.split(',');
-                lat = parts[0]?.trim() || null;
-                lon = parts[1]?.trim() || null;
-              }
-
-              // // Reverse geocode if we have coordinates
-              // let gps_location = null;
-              // if (lat && lon) {
-              //   gps_location = await getAddress(lat, lon);
-              //   console.log('Reverse Geocoded Result:', gps_location);
-              // }
+              const parts = r.note.location.split(',');
+              let lat = parts[0]?.trim() || null;
+              let lon = parts[1]?.trim() || null;
 
               return {
                 company_id: company_id,
