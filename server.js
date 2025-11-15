@@ -174,12 +174,12 @@ function init(devices) {
                 lon = parts[1]?.trim() || null;
               }
 
-              // Reverse geocode if we have coordinates
-              let gps_location = null;
-              if (lat && lon) {
-                gps_location = await getAddress(lat, lon);
-                console.log('Reverse Geocoded Result:', gps_location);
-              }
+              // // Reverse geocode if we have coordinates
+              // let gps_location = null;
+              // if (lat && lon) {
+              //   gps_location = await getAddress(lat, lon);
+              //   console.log('Reverse Geocoded Result:', gps_location);
+              // }
 
               return {
                 company_id: company_id,
@@ -195,7 +195,7 @@ function init(devices) {
                 log_date: (r.time || '').split(" ")[0] || null,
                 lat: lat,
                 lon: lon,
-                gps_location: gps_location
+                // gps_location: gps_location
               };
             })
           );
