@@ -149,7 +149,6 @@ function init(devices) {
 
           const stamped = await Promise.all(
             (msg.record || []).map(async (r) => {
-              console.log(r);
 
               const location = r?.note?.location || null;
 
@@ -162,7 +161,7 @@ function init(devices) {
                 lon = parts[1]?.trim() || null;
               }
 
-              return {
+              let log = {
                 company_id: company_id,
                 UserID: r.enrollid,
                 DeviceID: DeviceID,
@@ -176,11 +175,13 @@ function init(devices) {
                 log_date: (r.time || "").split(" ")[0] || null,
                 lat,
                 lon,
-              };
+              }
+
+              console.log(log);
+
+              return log;
             })
           );
-
-          console.log(stamped);
 
           // Add to queue
           addLogsToQueue(stamped);

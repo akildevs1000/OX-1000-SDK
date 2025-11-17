@@ -56,7 +56,7 @@ async function flushLogs() {
 
     try {
         await sendAttendanceLogs(`${BACKEND_ENDPOINT}/store-logs-from-nodesdk`, batch);
-        console.log(`Sent ${batch.length} logs to Laravel`);
+        console.log(`Sent ${batch.length} logs to Server`);
     } catch (err) {
         console.error('Error sending logs, re-queueing', err);
         logQueue.unshift(...batch); // put them back in queue if failed
@@ -72,7 +72,7 @@ async function sendAttendanceLogs(url, logs) {
             headers: { 'Content-Type': 'application/json' },
             httpsAgent
         });
-        console.log('Response from Laravel:', response.data);
+        console.log('Response from Server:', response.data);
 
         saveLogsAsJson(logs);
 
