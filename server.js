@@ -149,12 +149,18 @@ function init(devices) {
 
           const stamped = await Promise.all(
             (msg.record || []).map(async (r) => {
-
               console.log(r);
 
-              const parts = r.note.location.split(',');
-              let lat = parts[0]?.trim() || null;
-              let lon = parts[1]?.trim() || null;
+              const location = r?.note?.location || null;
+
+              let lat = null;
+              let lon = null;
+
+              if (location) {
+                const parts = location.split(',');
+                lat = parts[0]?.trim() || null;
+                lon = parts[1]?.trim() || null;
+              }
 
               return {
                 company_id: company_id,
@@ -167,10 +173,9 @@ function init(devices) {
                 reason: "---",
                 log_date_time: r.time,
                 index_serial_number: null,
-                log_date: (r.time || '').split(" ")[0] || null,
-                lat: lat,
-                lon: lon,
-                // gps_location: gps_location
+                log_date: (r.time || "").split(" ")[0] || null,
+                lat,
+                lon,
               };
             })
           );
