@@ -150,6 +150,8 @@ function init(devices) {
           const stamped = await Promise.all(
             (msg.record || []).map(async (r) => {
 
+              console.log(r);
+
               const parts = r.note.location.split(',');
               let lat = parts[0]?.trim() || null;
               let lon = parts[1]?.trim() || null;
