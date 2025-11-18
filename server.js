@@ -144,7 +144,7 @@ function init(devices) {
       if (cmd === 'sendlog') {
 
         (async () => {
-          let DeviceID = `${msg.sn}-Mobile`
+          let DeviceID = `${msg.sn}`
           const company_id = devices[DeviceID];
 
           const stamped = await Promise.all(
